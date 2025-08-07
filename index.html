@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ブルアカプロフィールクイズ</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+      background: #f4f4f4;
+    }
+    #cardsContainer {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .card {
+      background: #333;
+      color: white;
+      padding: 20px;
+      cursor: pointer;
+      border-radius: 8px;
+      user-select: none;
+    }
+    .card.revealed {
+      background: #fff;
+      color: #333;
+      border: 1px solid #ccc;
+      cursor: default;
+    }
+    #inputArea {
+      margin-top: 20px;
+    }
+    #result {
+      margin-top: 20px;
+      font-size: 1.2em;
+      font-weight: bold;
+      white-space: pre-line;
+    }
+    #answerImage, #scoreImage {
+      display: block;
+      margin: 10px auto;
+      border-radius: 8px;
+    }
+    #answerImage {
+      max-width: 150px;
+    }
+    #scoreImage {
+      max-width: 400px;  /* 拡大！ */
+    }
+    #scoreBoard {
+      margin-top: 10px;
+      font-size: 1.4em;
+      font-weight: bold;
+      display: none;
+    }
+    #submitBtn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    #screenshotBtn {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 1em;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <h1>ブルアカプロフィールクイズ</h1>
+  <div id="quizArea">
+    <div id="cardsContainer"></div>
+    <div id="inputArea">
+      <input type="text" id="answerInput" placeholder="答えを入力..." />
+      <button id="submitBtn" disabled>回答</button>
+    </div>
+    <div id="result"></div>
+    <img id="answerImage" src="" alt="回答画像" style="display:none;" />
+    <div id="scoreBoard"></div>
+    <img id="scoreImage" src="images/fixed_score_image.png" alt="スコア画像" />
+    <button id="screenshotBtn">スクリーンショットを撮る</button>
+  </div>
+
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <script>
+    const allQuizData = [
+      { answer: 'ホシノ', hints: ['アビドス高等学校', '対策委員会', '17歳', '145cm', '昼寝、ゴロゴロすること', '1月2日', 'タンク', 'Eye of Horus', '積み重ねる誓いの翼', '小鳥遊'], image: 'images/A1.png'},
+      { answer: 'ヒナ', hints: ['ゲヘナ学園', '風紀委員会', '17歳', '142cm', '睡眠、休憩', '2月19日', 'アタッカー', '終幕：デストロイヤー', '積み上げる尽力の翼', '空崎'], image: 'images/A2.png'},
+      { answer: 'ミカ', hints: ['トリニティ総合学園', 'ティーパーティー', '17歳', '157cm', 'おしゃべり、アクセサリー集め', '5月8日', 'アタッカー', 'Quis ut Deus', '君は無邪気な夜の希望', '聖園'], image: 'images/A3.png'},
+      { answer: 'ユウカ', hints: ['ミレニアムサイエンススクール', 'セミナー', '16歳', '156cm', '計算', '3月14日', 'タンク', 'ロジック＆リーズン', '理性と情熱のEquation', '早瀬'], image: 'images/A4.png'},
+      { answer: 'カヨコ', hints: ['ゲヘナ学園', '便利屋68', '18歳', '157cm', '音楽CD収集', '3月17日', 'サポーター', 'デモンズロア', '美しく明けきメタル', '鬼方'], image: 'images/A5.png'},
+      { answer: 'アル', hints: ['ゲヘナ学園', '便利屋68', '16歳', '160cm', '経営の勉強', '3月12日', 'アタッカー', 'ワインレッド・アドマイアー', '悪は一日にして成らず', '陸八魔'], image: 'images/A6.png'},
+      { answer: 'カズサ', hints: ['トリニティ総合学園', '放課後スイーツ部', '15歳', '155cm', '「普通に」スイーツを食べること', '8月5日', 'アタッカー', 'マビノギオン', '黒猫は甘い夢の中で', '杏山'], image: 'images/A7.png'},
+      { answer: 'シロコ', hints: ['アビドス高等学校', '対策委員会', '16歳', '156cm', 'ジョギング、体力トレーニング、ロードバイク', '5月16日', 'アタッカー', 'WHITE FANG 465', '親愛なる、はじまりの君へ', '砂狼'], image: 'images/A8.png'},
+      { answer: 'セリカ', hints: ['アビドス高等学校', '対策委員会', '15歳', '153cm', '貯金、アルバイト', '6月25日', 'アタッカー', 'シンシアリティ', '巫女は隣で丸くなる', '黒見'], image: 'images/A9.png'},
+      { answer: 'サオリ', hints: ['アリウス分校', 'アリウススクワッド', '17歳', '167cm', '趣味なし', '9月3日', 'アタッカー', 'アリウス製アサルトライフル', '雪代水は廻り行く', '錠前'], image: 'images/A10.png'},
+      { answer: 'カンナ', hints: ['ヴァルキューレ警察学校', '公安局', '17歳', '166cm', '読書、映画鑑賞（推理もの）', '9月7日', 'アタッカー', '第17号ヴァルキューレ制式拳銃', '正義は珈琲のように甘く', '尾刃'], image: 'images/A11.png'},
+      { answer: 'イロハ', hints: ['ゲヘナ学園', '万魔殿', '16歳', '151cm', '読書、サボること', '11月16日', 'タクティカルサポート', '万魔殿制式拳銃', '色は隠れど 咲きぬるを', '棗'], image: 'images/A12.png'},
+      { answer: 'イブキ', hints: ['ゲヘナ学園', '万魔殿', '11歳', '128cm', '予習・復習、ぬいぐるみ集め', '4月14日', 'サポーター', 'バンバーン！ちゃん', 'ピックアップタイトルなし', '丹花'], image: 'images/A13.png'},
+      { answer: 'アコ', hints: ['ゲヘナ学園', '風紀委員会', '17歳', '165cm', 'ヒナ委員長', '12月22日', 'サポーター', 'ホットショット', '夜明けに珈琲を 手の甲に誓いを', '天雨'], image: 'images/A14.png'},
+      { answer: 'キサキ', hints: ['山海経高級中学校', '玄龍門', '17歳', '142cm', '茶道、密行', '2月19日', 'サポーター', '知彼知己', '黒君は遠き慮り有りて', '竜華'], image: 'images/A15.png'},
+      { answer: 'ハルナ', hints: ['ゲヘナ学園', '美食研究会', '17歳', '163cm', '美味しいもの探し', '3月1日', 'アタッカー', 'アイディール', 'その味は身命を賭してでも', '黒舘'], image: 'images/A16.png'},
+      { answer: 'フウカ', hints: ['ゲヘナ学園', '給食部', '16歳', '159cm', '家庭料理、お弁当作り', '4月30日', 'ヒーラー', '給食部の護身用銃typeA', '馳走のこころは かはらざりけり', '愛清'], image: 'images/A17.png'},
+      { answer: 'カスミ', hints: ['ゲヘナ学園', '温泉開発部', '16歳', '148cm', '爆破、温泉開発', '5月24日', 'アタッカー', 'レッド·レクター', '温泉を始めるのなら爆破から！', '鬼怒川'], image: 'images/A18.png'},
+      { answer: 'ココナ', hints: ['山海経高級中学校', '梅花園', '11歳', '139cm', '絵本を読むこと', '6月1日', 'ヒーラー', 'レディーの気品', 'しずこころなく梅咲き誇る!', '春原'], image: 'images/A19.png'},
+      { answer: 'ナギサ', hints: ['トリニティ総合学園', 'ティーパーティー', '17歳', '160cm', '茶葉収集、お菓子作り、庭の手入れ', '7月4日', 'アタッカー', 'ロイヤルブレンド', "Where there's tea party there's hope.", '桐藤'], image: 'images/A20.png'},
+      { answer: 'セイア', hints: ['トリニティ総合学園', 'ティーパーティー', '17歳', '149cm', '謎解き、読書', '9月29日', 'サポーター', '鋭き光彩', '優しく希望は降りしきる', '百合園'], image: 'images/A21.png'},
+      { answer: 'イチカ', hints: ['トリニティ総合学園', '正義実現委員会', '16歳', '163cm', '人助け、色々手を出している最中', '11月11日', 'アタッカー', 'レッドドラゴン', 'そして正義はいつも隣から！', '仲正'], image: 'images/A22.png'},
+      { answer: 'マリー', hints: ['トリニティ総合学園', 'シスターフッド', '15歳', '151cm', 'お祈り、考えごと', '9月12日', 'サポーター', 'パイエティー', 'ステンドグラスに誘われて', '伊落'], image: 'images/A23.png'},
+      { answer: 'コハル', hints: ['トリニティ総合学園', '補習授業部', '15歳', '148cm', '空想、妄想、エッチな雑誌集め', '4月16日', 'ヒーラー', 'ジャスティス・ブラック', '淫らを温ねて正しきを知るっ', '下江'], image: 'images/A24.png'},
+      { answer: 'ヒフミ', hints: ['トリニティ総合学園', '補習授業部', '16歳', '158cm', 'ペロログッズ集め、可愛いもの集め、ショッピング、相談に乗ること', '11月27日', 'サポーター', 'マイ・ネセシティ', 'ひたむきな愛で紡いで', '阿慈谷'], image: 'images/A25.png'},
+      { answer: 'ミネ', hints: ['トリニティ総合学園', '救護騎士団', '17歳', '168cm', '医療品集め', '11月23日', 'タンク', '救護の証明', 'ドレスコードは鋼の白衣', '蒼森'], image: 'images/A26.png'},
+      { answer: 'イズナ', hints: ['百鬼夜行連合学院', '忍術研究部', '15歳', '155cm', '忍術の勉強、主殿の護衛', '12月16日', 'アタッカー', 'イズナ流スーパー忍具', '祭り囃子はしのぶれど', '久田'], image: 'images/A27.png'},
+      { answer: 'コユキ', hints: ['ミレニアムサイエンススクール', 'セミナー', '15歳', '149cm', '運試し、脱出', '2月14日', 'アタッカー', 'マリ・ガン', '解に導く番狂わせ', '黒崎'], image: 'images/A28.png'},
+      { answer: 'アリス', hints: ['ミレニアムサイエンススクール', 'ゲーム開発部', '??歳', '152cm', 'ゲーム（特にRPG）', '3月25日', 'アタッカー', '光の剣：スーパーノヴァ', '機械たちは旅立ちの夢を見るか？', '天童'], image: 'images/A29.png'},
+      { answer: 'ネル', hints: ['ミレニアムサイエンススクール', 'Cleaning&Clearing', '17歳', '146cm', '勝利', '8月17日', 'アタッカー', 'ツイン・ドラゴン', '問答無用のストレートアップ', '美甘'], image: 'images/A30.png'},
+      { answer: 'シグレ', hints: ['レッドウィンター連邦学園', '227号特別クラス', '16歳', '156cm', '自家製ドリンクを作ること', '1月22日', 'アタッカー', 'スプリングパンチ', '雪夜は星月のしずくに酔って', '間宵'], image: 'images/A31.png'},
+      { answer: 'ミヤコ', hints: ['SRT特殊学園', 'RABBIT小隊', '15歳', '156cm', '動物系の動画鑑賞', '1月7日', 'タンク', 'RABBIT-31式短機関銃', 'こちらRABBIT1、理想をこの眼に', '月雪'], image: 'images/A32.png'},
+      { answer: 'アヤネ', hints: ['アビドス高等学校', '対策委員会', '15歳', '153cm', '家計簿をつけること、骨董品収集', '11月12日', 'ヒーラー', 'コモンセンス', 'ピックアップタイトルなし', '奥空'], image: 'images/A33.png'},
+      { answer: 'ノノミ', hints: ['アビドス高等学校', '対策委員会', '16歳', '160cm', 'ショッピング', '9月1日', 'アタッカー', 'リトルマシンガンV', '笑顔よ続け、夏の日に', '十六夜'], image: 'images/A34.png'},
+      { answer: 'アツコ', hints: ['アリウス分校', 'アリウススクワッド', '15歳', '158cm', '花のお手入れ', '1月20日', 'タンク', 'スコルピウス', '徒桜を拾い集めて', '秤'], image: 'images/A35.png'},
+      { answer: 'ミサキ', hints: ['アリウス分校', 'アリウススクワッド', '16歳', '163cm', 'ひとりで過ごすこと', '1月13日', 'アタッカー', 'セイントプレデター', '逃げ水を夢に見て', '戒野'], image: 'images/A36.png'},
+      { answer: 'ヒヨリ', hints: ['アリウス分校', 'アリウススクワッド', '16歳', '155cm', '雑誌の収集', '1月8日', 'サポーター', 'アイデンティティ', '木枯らしに目を引かれ', '槌永'], image: 'images/A37.png'},
+      { answer: 'キリノ', hints: ['ヴァルキューレ警察学校', '生活安全局', '15歳', '161cm', '食べ歩き', '10月22日', 'サポーター', '第3号ヴァルキューレ制式拳銃', 'やがて未来に変わる庇護', '中務'], image: 'images/A38.png'},
+      { answer: 'フブキ', hints: ['ヴァルキューレ警察学校', '生活安全局', '15歳', '148cm', 'クロスワード、ラジオ', '10月21日', 'アタッカー', '第14号ヴァルキューレ制式ライフル', 'ピックアップタイトルなし', '合歓垣'], image: 'images/A39.png'},
+      { answer: 'マコト', hints: ['ゲヘナ学園', '万魔殿', '18歳', '169cm', '計略、悪巧み、イブキと遊ぶこと', '3月19日', 'アタッカー', '唯我独尊', '我等がために宙は鳴る！', '羽沼'], image: 'images/A40.png'},
+      { answer: 'サツキ', hints: ['ゲヘナ学園', '万魔殿', '17歳', '172cm', 'マインドコントロールの研究、ショッピング', '4月10日', 'アタッカー', 'NKデルタ', '京極サツキは諦めない', '京極'], image: 'images/A41.png'},
+      { answer: 'イオリ', hints: ['ゲヘナ学園', '風紀委員会', '16歳', '157cm', 'パトロール、大声を出すこと', '11月8日', 'アタッカー', 'クラックショット', 'Snipe the target L-seven!', '銀鏡'], image: 'images/A42.png'},
+      { answer: 'チナツ', hints: ['ゲヘナ学園', '風紀委員会', '15歳', '159cm', '哲学書を読むこと', '8月22日', 'ヒーラー', 'サポートポインター', '責務と休息のアンティノミー', '火宮'], image: 'images/A43.png'},
+      { answer: 'ムツキ', hints: ['ゲヘナ学園', '便利屋68', '16歳', '144cm', '爆弾収集', '7月29日', 'アタッカー', 'トリックオアトリック', '四つ手重ねて たのしきをつめ', '浅黄'], image: 'images/A44.png'},
+      { answer: 'ハルカ', hints: ['ゲヘナ学園', '便利屋68', '15歳', '157cm', '雑草を育てること', '5月13日', 'タンク', 'ブローアウェイ', '千草たばねて　しあわせをつめ', '伊草'], image: 'images/A45.png'},
+      { answer: 'イズミ', hints: ['ゲヘナ学園', '美食研究会', '16歳', '161cm', 'ゲテモノ料理を食べること、作ること', '5月11日', 'アタッカー', 'デイリーカトラリー', '今年こそ 煌めく美食に 舌鼓！', '獅子堂'], image: 'images/A46.png'},
+      { answer: 'アカリ', hints: ['ゲヘナ学園', '美食研究会', '17歳', '167cm', '大食い', '12月9日', 'アタッカー', 'ボトムレス', '幾重のかをり 早たちにけり', '鰐渕'], image: 'images/A47.png'},
+      { answer: 'ジュンコ', hints: ['ゲヘナ学園', '美食研究会', '15歳', '149cm', 'グルメ巡り', '12月27日', 'アタッカー', 'ダイナーズアウトロー', 'ピックアップタイトルなし', '赤司'], image: 'images/A48.png'},
+      { answer: 'セナ', hints: ['ゲヘナ学園', '救急医学部', '17歳', '155cm', '待機、薬品の整備', '4月7日', 'タクティカルサポート', '救急用突入キット', '自由意志のもと誇りにかけて', '氷室'], image: 'images/A49.png'},
+      { answer: 'ジュリ', hints: ['ゲヘナ学園', '給食部', '15歳', '170cm', '自己流の料理研究', '10月20日', 'サポーター', '給食部の護身用銃typeB', '隠し味は努力と笑顔', '牛牧'], image: 'images/A50.png'},
+      { answer: 'メグ', hints: ['ゲヘナ学園', '温泉開発部', '17歳', '164cm', '撤去', '4月25日', 'アタッカー', 'メグマパワー！', '義勇は温泉のように熱く！', '下倉'], image: 'images/A51.png'},
+      { answer: 'キララ', hints: ['ゲヘナ学園', 'キラキラ部', '16歳', '159cm', 'おしゃべり', '2月24日', 'アタッカー', 'チョコレート＆ストロベリー', '巻いてこMy take on！', '夜桜'], image: 'images/A52.png'},
+      { answer: 'ミナ', hints: ['山海経高級中学校', '玄龍門', '16歳', '166cm', '映画鑑賞（主にハードボイルド系）', '9月9日', 'サポーター', '玄龍＆白虎', 'ノワールに唄えば', '近衛'], image: 'images/A53.png'},
+      { answer: 'ルミ', hints: ['山海経高級中学校', '玄武商会', '17歳', '168cm', '料理、食品開発', '3月5日', 'ヒーラー', '温故知新', 'カンパニーで飲茶を！', '朱城'], image: 'images/A54.png'},
+      { answer: 'サヤ', hints: ['山海経高級中学校', '錬丹術研究会', '16歳', '149cm', '研究', '1月3日', 'アタッカー', 'ぼく様特製拳銃', '年がら年中無我夢チュー！', '薬子'], image: 'images/A55.png'},
+      { answer: 'シュン', hints: ['山海経高級中学校', '梅花園', '極秘', '174cm', '子供たちと遊ぶこと', '2月5日', 'アタッカー', '愛のムチ', '未来のどけき梅の園', '春原'], image: 'images/A56.png'},
+      { answer: 'ツルギ', hints: ['トリニティ総合学園', '正義実現委員会', '17歳', '162cm', '映画鑑賞、読書（恋愛小説）', '6月24日', 'アタッカー', 'ブラッド＆ガンパウダー', '奮い立つグラジオラス', '剣先'], image: 'images/A57.png'},
+      { answer: 'マシロ', hints: ['トリニティ総合学園', '正義実現委員会', '15歳', '155cm', '高いところに登ること、観察日記を書くこと', '6月5日', 'アタッカー', '正義の顕現', '赤の季節、黒の制服', '静山'], image: 'images/A58.png'},
+      { answer: 'ハスミ', hints: ['トリニティ総合学園', '正義実現委員会', '17歳', '179cm', '読書、人間観察', '12月12日', 'アタッカー', 'インペイルメント', '正しいは波間の煌めきに隠されて ', '羽川'], image: 'images/A59.png'},
+      { answer: 'サクラコ', hints: ['トリニティ総合学園', 'シスターフッド', '17歳', '160cm', 'お祈り', '10月4日', 'アタッカー', '浄化の織り手', '偽りなき信仰の甘果', '歌住'], image: 'images/A60.png'},
+      { answer: 'ヒナタ', hints: ['トリニティ総合学園', 'シスターフッド', '17歳', '166cm', 'お祈り、整理整頓', '5月17日', 'アタッカー', 'ブレッシング', '故なき力添えの賛歌', '若葉'], image: 'images/A61.png'},
+      { answer: 'ウイ', hints: ['トリニティ総合学園', '図書委員会', '17歳', '165cm', '読書、書籍の管理、古書の研究', '4月23日', 'サポーター', 'ボリュームサプレッサー', '声なき言葉たちの残花', '古関'], image: 'images/A62.png'},
+      { answer: 'シミコ', hints: ['トリニティ総合学園', '図書委員会', '15歳', '157cm', '読書、しおりづくり', '11月30日', 'サポーター', 'ライブラリールーラー', 'ピックアップタイトルなし', '円堂'], image: 'images/A63.png'},
+      { answer: 'アズサ', hints: ['トリニティ総合学園', '補習授業部', '16歳', '149cm', '趣味なし', '12月26日', 'アタッカー', 'Et Omnia Vanitas', '花散らす仮面舞踏会', '白洲'], image: 'images/A64.png'},
+      { answer: 'ハナコ', hints: ['トリニティ総合学園', '補習授業部', '16歳', '161cm', '徘徊', '1月3日', 'ヒーラー', 'オネストウィッシュ', '花散らす仮面舞踏会', '浦和'], image: 'images/A65.png'},
+      { answer: 'ナツ', hints: ['トリニティ総合学園', '放課後スイーツ部', '15歳', '152cm', 'ロマンチックなこと、思索', '12月4日', 'タンク', 'ビヨンド・ザ・ルミネーション', 'ステンドグラスに誘われて', '柚鳥'], image: 'images/A66.png'},
+      { answer: 'アイリ', hints: ['トリニティ総合学園', '放課後スイーツ部', '15歳', '160cm', '美味しいスイーツ探し、お茶会', '1月30日', 'サポーター', '爽やかチョコミント', 'ピックアップタイトルなし', '栗村'], image: 'images/A67.png'},
+      { answer: 'ヨシミ', hints: ['トリニティ総合学園', '放課後スイーツ部', '15歳', '146cm', 'イベントごと、限定スイーツ巡り', '8月29日', 'アタッカー', '', "Ain't too proud to rely on!", '伊原木'], image: 'images/A68.png'},
+      { answer: 'ハナエ', hints: ['トリニティ総合学園', '救護騎士団', '15歳', '150cm', 'ダンス、チアリーディング', '5月12日', 'ヒーラー', 'ハッピースマイリー', '雪夜に贈るぬくもりのハレルヤ！', '朝顔'], image: 'images/A69.png'},
+      { answer: 'セリナ', hints: ['トリニティ総合学園', '救護騎士団', '16歳', '156cm', '病院のボランティア', '1月6日', 'ヒーラー', 'タクティカルセラピー', '聖夜に響く慈愛のキャロル', '鷲見'], image: 'images/A70.png'},
+      { answer: 'スズミ', hints: ['トリニティ総合学園', '自警団', '16歳', '162cm', '巡回、散策', '8月31日', 'サポーター', 'セーフティー', 'ピックアップタイトルなし', '守月'], image: 'images/A71.png'},
+      { answer: 'レイサ', hints: ['トリニティ総合学園', '自警団', '15歳', '153cm', '決闘申込み、自己紹介', '5月31日', 'タンク', 'シューティング☆スター', '挑戦は甘い夢の外で！', '宇沢'], image: 'images/A72.png'},
+      { answer: 'カホ', hints: ['百鬼夜行連合学院', '陰陽部', '17歳', '173cm', '百鬼夜行文化の広報、百鬼夜行グッズ集め', '10月9日', 'アタッカー', '戦略リーダーのノウハウ', '好きの奥山 添い遂げて', '桑上'], image: 'images/A73.png'},
+      { answer: 'チセ', hints: ['百鬼夜行連合学院', '陰陽部', '16歳', '159cm', '俳句', '7月13日', 'アタッカー', '五七五式榴弾砲', 'ものや詠もうと心問ふまで', '和楽'], image: 'images/A74.png'},
+      { answer: 'シズコ', hints: ['百鬼夜行連合学院', 'お祭り運営委員会', '16歳', '153cm', '可愛く接客すること、看板娘パンチ', '7月7日', 'サポーター', '桜ボンボン', '祭り囃子はしのぶれど', '河和'], image: 'images/A75.png'},
+      { answer: 'フィーナ', hints: ['百鬼夜行連合学院', 'お祭り運営委員会', '17歳', '165cm', '任侠映画鑑賞', '11月3日', 'アタッカー', '仁義なき撃ち合い', 'you me を繋ぎし さかずきの', '朝比奈'], image: 'images/A76.png'},
+      { answer: 'ウミカ', hints: ['百鬼夜行連合学院', 'お祭り運営委員会', '15歳', '165cm', 'お祭り体験、お祭り関連グッズ（パンフレット）集め', '7月1日', 'アタッカー', 'お祭りの熱気', '夢を誘ひししおさいの', '里浜'], image: 'images/A77.png'},
+      { answer: 'ツクヨ', hints: ['百鬼夜行連合学院', '忍術研究部', '15歳', '180cm', '身代わりの術、息を潜めること', '4月5日', 'タンク', 'ツクヨ流サブマシンガン', '星ひとつ、23.4°見上げて', '大野'], image: 'images/A78.png'},
+      { answer: 'ミチル', hints: ['百鬼夜行連合学院', '忍術研究部', '17歳', '153cm', '新しい忍術の考案、動画づくり', '2月22日', 'アタッカー', 'ミチル流オーバーフローショットガン', 'ピックアップタイトルなし', '千鳥'], image: 'images/A79.png'},
+      { answer: 'ミモリ', hints: ['百鬼夜行連合学院', '修行部', '16歳', '156cm', '少女漫画、家事全般', '3月15日', 'サポーター', '柔らかな決意', 'いつか花咲く少女の夢', '水羽'], image: 'images/A80.png'},
+      { answer: 'カエデ', hints: ['百鬼夜行連合学院', '修行部', '15歳', '142cm', 'いたずら（できるだけ我慢してる）、カブトムシを捕まえること', '7月9日', 'サポーター', 'ファニー・ファイアワークス', '我が身終ぞ 常ならむ！', '勇美'], image: 'images/A81.png'},
+      { answer: 'ツバキ', hints: ['百鬼夜行連合学院', '修行部', '16歳', '162cm', '昼寝', '2月3日', 'タンク', '安眠のお供Ⅱ', '夢を守りし はるはなの', '春日'], image: 'images/A82.png'},
+      { answer: 'ワカモ', hints: ['百鬼夜行連合学院', '無所属', '18歳', '161cm', '破壊、略奪', '4月3日', 'アタッカー', '真紅の災厄', '太陽と雨のすれ違い', '狐坂'], image: 'images/A83.png'},
+      { answer: 'ノア', hints: ['ミレニアムサイエンススクール', 'セミナー', '16歳', '161cm', '読書、暗唱', '4月13日', 'サポーター', '書記の採決', '曇り硝子に描く刹那', '生塩'], image: 'images/A84.png'},
+      { answer: 'リオ', hints: ['ミレニアムサイエンススクール', 'セミナー', '17歳', '171cm', 'デザイン', '6月6日', 'サポーター', '立案者', '合理主義者はかく語れり', '調月'], image: 'images/A85.png'},
+      { answer: 'ユズ', hints: ['ミレニアムサイエンススクール', 'ゲーム開発部', '16歳', '150cm', 'ゲーム制作', '8月12日', 'アタッカー', "にゃん's ダッシュ", '夢を奏でる春告げのRPG', '花岡'], image: 'images/A86.png'},
+      { answer: 'ミドリ', hints: ['ミレニアムサイエンススクール', 'ゲーム開発部', '15歳', '143cm', '絵を描くこと', '12月8日', 'アタッカー', 'フレッシュ・インスピレーション', '共鳴する風信子', '才羽'], image: 'images/A87.png'},
+      { answer: 'モモイ', hints: ['ミレニアムサイエンススクール', 'ゲーム開発部', '15歳', '143cm', 'ゲーム', '12月8日', 'アタッカー', 'ユニーク・アイディア', '共鳴する風信子', '才羽'], image: 'images/A88.png'},
+      { answer: 'カリン', hints: ['ミレニアムサイエンススクール', 'Cleaning&Clearing', '16歳', '170cm', 'お掃除', '2月2日', 'アタッカー', 'ホークアイ', 'ご奉仕は火力支援のあとで', '角楯'], image: 'images/A89.png'},
+      { answer: 'トキ', hints: ['ミレニアムサイエンススクール', 'Cleaning&Clearing', '16歳', '165cm', '探している最中', '8月16日', 'アタッカー', 'シークレットタイム', "Where there's Toki there's victory.", '飛鳥馬'], image: 'images/A90.png'},
+      { answer: 'アカネ', hints: ['ミレニアムサイエンススクール', 'Cleaning&Clearing', '16歳', '164cm', 'お掃除', '4月1日', 'サポーター', 'サイレントソリューション', '昼下がりのロイヤルフラッシュ', '室笠'], image: 'images/A91.png'},
+      { answer: 'アスナ', hints: ['ミレニアムサイエンススクール', 'Cleaning&Clearing', '17歳', '167cm', '襲撃', '3月24日', 'アタッカー', 'サプライズパーティー', '無軌道なハットトリック', '一之瀬'], image: 'images/A92.png'},
+      { answer: 'ヒビキ', hints: ['ミレニアムサイエンススクール', 'エンジニア部', '15歳', '154cm', '買い物、コスプレ', '4月2日', 'アタッカー', 'ファンシーライト', '閃きよ、この世界を照らして', '猫塚'], image: 'images/A93.png'},
+      { answer: 'ウタハ', hints: ['ミレニアムサイエンススクール', 'エンジニア部', '17歳', '162cm', '発明や修理全般', '11月13日', 'アタッカー', 'マイスター・ゼロ', '晴れ空に響く情熱', '白石'], image: 'images/A94.png'},
+      { answer: 'コトリ', hints: ['ミレニアムサイエンススクール', 'エンジニア部', '15歳', '151cm', 'おしゃべり', '12月31日', 'サポーター', 'プロフェッサーK', '明け空に説く こころ模様', '豊見'], image: 'images/A95.png'},
+      { answer: 'チヒロ', hints: ['ミレニアムサイエンススクール', 'ヴェリタス', '17歳', '160cm', '電子機器類の買い物', '4月26日', 'アタッカー', 'バックドア', '大聖堂からバザールにかけて', '各務'], image: 'images/A96.png'},
+      { answer: 'マキ', hints: ['ミレニアムサイエンススクール', 'ヴェリタス', '15歳', '149cm', 'グラフィティ、ゲーム', '8月1日', 'アタッカー', 'オートラッカー', 'Paint the school red !', '小塗'], image: 'images/A97.png'},
+      { answer: 'ハレ', hints: ['ミレニアムサイエンススクール', 'ヴェリタス', '16歳', '153cm', 'ゲーム、映画鑑賞', '4月19日', 'サポーター', 'オートエイマー', '天体より注ぐ情報の光', '小鈎'], image: 'images/A98.png'},
+      { answer: 'コタマ', hints: ['ミレニアムサイエンススクール', 'ヴェリタス', '17歳', '158cm', '無線通信、盗聴', '1月5日', 'サポーター', 'エコーリンク', '暁光にとける感情の音', '音瀬'], image: 'images/A99.png'},
+      { answer: 'スミレ', hints: ['ミレニアムサイエンススクール', 'トレーニング部', '16歳', '167cm', 'トレーニング、ガーデニング', '8月20日', 'アタッカー', 'ミレニアム製最新型ダンベル', '培われし努力の不可逆性', '乙花'], image: 'images/A100.png'},
+      { answer: 'エイミ', hints: ['ミレニアムサイエンススクール', '特異現象捜査部', '15歳', '167cm', 'ボーっとすること、音楽鑑賞', '5月1日', 'タンク', 'マルチタクティカル', '胸燃ゆる理想の可変性', '和泉元'], image: 'images/A101.png'},
+      { answer: 'ヒマリ', hints: ['ミレニアムサイエンススクール', '特異現象捜査部', '17歳', '162cm', '今日の運勢の確認、オカルト全般', '12月10日', 'サポーター', '高嶺の花', '涼やかなる夢想の可能性', '明星'], image: 'images/A102.png'},
+      { answer: 'チェリノ', hints: ['レッドウィンター連邦学園', '事務局', '??歳', '128cm', '粛清、雪合戦', '10月27日', 'アタッカー', 'チーストカ', '晴れのち失脚、所により大荒れ', '連河'], image: 'images/A103.png'},
+      { answer: 'マリナ', hints: ['レッドウィンター連邦学園', '事務局', '16歳', '166cm', '散歩、突撃', '11月4日', 'タンク', 'バラライカ', '忠言、耳に突撃', '池倉'], image: 'images/A104.png'},
+      { answer: 'トモエ', hints: ['レッドウィンター連邦学園', '事務局', '17歳', '165cm', 'アジテーション', '11月10日', 'サポーター', 'ヴィエールナシチ', '雪の下に咲く二十一日', '佐城'], image: 'images/A105.png'},
+      { answer: 'ノドカ', hints: ['レッドウィンター連邦学園', '227号特別クラス', '16歳', '147cm', '天体観測', '2月20日', 'サポーター', 'サジタリウスナイト', '湯けむりは星月夜に溶けて', '天見'], image: 'images/A106.png'},
+      { answer: 'ミノリ', hints: ['レッドウィンター連邦学園', '工務部', '17歳', '158cm', 'ストライキ、デモ、工作', '7月14日', 'アタッカー', '鋼鉄の松明', '工務の道も一歩から', '安守'], image: 'images/A107.png'},
+      { answer: 'メル', hints: ['レッドウィンター連邦学園', '知識解放戦線', '16歳', '137cm', '漫画を描くこと、妄想', '12月21日', 'アタッカー', '創作の……苦しみ！', 'ペンは銃より強し！', '姫木'], image: 'images/A108.png'},
+      { answer: 'モミジ', hints: ['レッドウィンター連邦学園', '知識解放戦線', '15歳', '135cm', '漫画収集', '8月7日', 'アタッカー', '図書館利用規則第7号', 'ペンは銃より強し！', '秋泉'], image: 'images/A109.png'},
+      { answer: 'サキ', hints: ['SRT特殊学園', 'RABBIT小隊', '15歳', '161cm', '銃器の整備、植物などの採集', '4月9日', 'アタッカー', 'RABBIT-26式機関銃', 'こちらRABBIT2、規範はこの脚に', '空井'], image: 'images/A110.png'},
+      { answer: 'モエ', hints: ['SRT特殊学園', 'RABBIT小隊', '15歳', '163cm', '打ち上げ花火', '9月13日', 'アタッカー', 'RABBIT-224式拳銃', 'こちらRABBIT3、計算をこの胸に', '風倉'], image: 'images/A111.png'},
+      { answer: 'ミユ', hints: ['SRT特殊学園', 'RABBIT小隊', '15歳', '149cm', '否定的な妄想、現実逃避、小石探し', '7月12日', 'サポーター', 'RABBIT-39式小銃', 'こちらRABBIT4、証明をこの手に', '霞沢'], image: 'images/A112.png'},
+      { answer: 'チアキ', hints: ['ゲヘナ学園', '万魔殿', '16歳', '167cm', '週刊誌発行、友達づくり', '9月22日', 'アタッカー', 'カメラブリッツ', '元宮チアキは見逃さない', '元宮'], image: 'images/A113.png'},
+      { answer: 'レイジョ', hints: ['山海経高級中学校', '玄武商会', '17歳', '169cm', 'カンフーの練習、グルメ', '3月3日', 'サポーター', '明鏡止水', '行は是れ武のカンフー！', '鹿山'], image: 'images/A114.png'},
+      { answer: 'ユカリ', hints: ['百鬼夜行連合学院', '百花繚乱紛争調停委員会', '15歳', '155cm', 'お祈り、駄菓子屋巡り', '6月16日', 'アタッカー', '百花繚乱制式ライフル-少女の決意', '夢見る乙女よ大志を抱け！', '勘解由小路'], image: 'images/A115.png'},
+      { answer: 'レンゲ', hints: ['百鬼夜行連合学院', '百花繚乱紛争調停委員会', '16歳', '157cm', 'ライトノベルを読むこと、鍛錬', '7月23日', 'アタッカー', '百花繚乱制式ライフル-青春の火花', 'はるは短し走れよ乙女', '不破'], image: 'images/A116.png'},
+      { answer: 'キキョウ', hints: ['百鬼夜行連合学院', '百花繚乱紛争調停委員会', '16歳', '160cm', 'あやとり、兵法書を読むこと、日光浴', '8月8日', 'サポーター', '百花繚乱制式ライフル-紺碧の知恵', 'おもい忍ばせ進めよ乙女', '桐生'], image: 'images/A117.png'},
+      { answer: 'レイ', hints: ['ミレニアムサイエンススクール', 'トレーニング部', '15歳', '159cm', 'スポーツ観戦、年鑑分析', '8月9日', 'アタッカー', 'ムーンショット！', '背負いし４番が夢を打つ', '野正'], image: 'images/A118.png'},
+      { answer: 'ノゾミ', hints: ['ハイランダー鉄道学園', 'CCC', '15歳', '147cm', '最速記録の更新', '6月14日', 'アタッカー', 'デッドリー・スイッチ', '定刻ドリフト、いたずらトッキュー！', '橘'], image: 'images/A119.png'},
+      { answer: 'ヒカリ', hints: ['ハイランダー鉄道学園', 'CCC', '15歳', '147cm', '（奇怪な）運転練習、アリの観察', '6月14日', 'サポーター', 'チケット・パンチ', '切符はいけん、きまぐれジュンキュー', '橘'], image: 'images/A120.png'},
+      { answer: 'ニヤ', hints: ['百鬼夜行連合学院', '陰陽部', '17歳', '166cm', ' 後輩たちを可愛がること、陰謀', '1月1日', 'アタッカー', '口蜜腹剣', 'あさき夢みし隔てなく', '天地'], image: 'images/A121.png'},
+      { answer: 'ナグサ', hints: ['百鬼夜行連合学院', '百花繚乱紛争調停委員会', '17歳', '161cm', '瞑想、読書', '12月7日', 'アタッカー', '百蓮', '乙女よ忘れたまふことなかれ', '御稜'], image: 'images/A122.png'},
+      { answer: 'アオバ', hints: ['ハイランダー鉄道学園', '貨物輸送管理部', '16歳', '151cm', '妄想、さりげない毒舌発言', '7月19日', 'タンク', '半端な期待', 'ピックアップタイトルなし', '内海'], image: 'images/A123.png'},
+    ];
+
+    const QUIZ_COUNT = 10;
+
+    let quizSubset = [];
+    let currentIndex = 0;
+    let currentReveals = 0;
+    let score = 0;
+
+    const cardsContainer = document.getElementById('cardsContainer');
+    const answerInput = document.getElementById('answerInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const resultDiv = document.getElementById('result');
+    const scoreBoard = document.getElementById('scoreBoard');
+    const answerImage = document.getElementById('answerImage');
+    const scoreImage = document.getElementById('scoreImage');
+    const screenshotBtn = document.getElementById('screenshotBtn');
+
+    submitBtn.addEventListener('click', checkAnswer);
+    screenshotBtn.addEventListener('click', takeScreenshot);
+
+    startGame();
+
+    function startGame() {
+      quizSubset = shuffleArray(allQuizData).slice(0, Math.min(QUIZ_COUNT, allQuizData.length));
+      currentIndex = 0;
+      currentReveals = 0;
+      score = 0;
+      scoreImage.style.display = 'none';
+      screenshotBtn.style.display = 'none';
+      loadNextQuestion();
+    }
+
+    function loadNextQuestion() {
+      resultDiv.textContent = '';
+      answerImage.style.display = 'none';
+      answerImage.src = '';
+      answerInput.value = '';
+      currentReveals = 0;
+      cardsContainer.innerHTML = '';
+      submitBtn.disabled = true;
+      answerInput.style.display = 'inline-block';
+      submitBtn.style.display = 'inline-block';
+      answerInput.disabled = false;
+      scoreBoard.style.display = 'none';
+      scoreImage.style.display = 'none';
+      screenshotBtn.style.display = 'none';
+
+      if (currentIndex >= quizSubset.length) {
+        showFinalScore();
+        return;
+      }
+
+      const { hints } = quizSubset[currentIndex];
+      const shuffledHints = shuffleArray(hints.slice());
+      shuffledHints.forEach((hint, idx) => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        card.textContent = `ヒント${idx + 1}`;
+        card.addEventListener('click', () => revealHint(card, hint));
+        cardsContainer.appendChild(card);
+      });
+    }
+
+    function revealHint(card, hint) {
+      if (card.classList.contains('revealed')) return;
+      card.classList.add('revealed');
+      card.textContent = hint;
+      currentReveals++;
+      if (currentReveals > 0) {
+        submitBtn.disabled = false;
+      }
+    }
+
+    function checkAnswer() {
+      const userAnswer = answerInput.value.trim();
+      const correctAnswer = quizSubset[currentIndex].answer;
+      if (currentReveals === 0) {
+        alert('まずはヒントを1つ以上めくってから回答してください');
+        return;
+      }
+      if (userAnswer === '') {
+        alert('答えを入力してください');
+        return;
+      }
+
+      if (userAnswer === correctAnswer) {
+        const points = Math.max(1, 11 - currentReveals);
+        score += points;
+        resultDiv.textContent = `正解！\n${points}点獲得`;
+        showAnswerImage();
+        submitBtn.disabled = true;
+        answerInput.disabled = true;
+        if (currentIndex >= quizSubset.length - 1) {
+          setTimeout(() => {
+            showFinalScore();
+          }, 1500);
+        } else {
+          setTimeout(() => {
+            currentIndex++;
+            loadNextQuestion();
+          }, 1500);
+        }
+      } else {
+        resultDiv.textContent = '不正解！';
+        showAnswerImage();
+        submitBtn.disabled = true;
+        if (currentIndex >= quizSubset.length - 1) {
+          answerInput.style.display = 'none';
+          submitBtn.style.display = 'none';
+          setTimeout(() => showFinalScore(), 1500);
+        } else {
+          answerInput.disabled = true;
+          setTimeout(() => {
+            currentIndex++;
+            loadNextQuestion();
+            answerInput.disabled = false;
+          }, 2000);
+        }
+      }
+    }
+
+    function showAnswerImage() {
+      answerImage.src = quizSubset[currentIndex].image;
+      answerImage.style.display = 'block';
+    }
+
+    function showFinalScore() {
+      // resultDiv はそのまま保持
+      scoreBoard.style.display = 'block';
+      scoreBoard.textContent = `先生の合計スコア：${score}点`;
+      scoreImage.style.display = 'block';
+      screenshotBtn.style.display = 'inline-block';
+    }
+
+    function takeScreenshot() {
+      html2canvas(document.querySelector("#quizArea")).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'quiz_result.png';
+        link.href = canvas.toDataURL();
+        link.click();
+      });
+    }
+
+    function shuffleArray(array) {
+      for (let i = array.length -1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i +1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    }
+  </script>
+</body>
+</html>
