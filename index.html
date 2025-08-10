@@ -73,10 +73,10 @@
   <h1>ブルアカプロフィールクイズ</h1>
   <div id="quizArea">
     <div id="cardsContainer"></div>
-    <div id="inputArea">
+    <form id="inputArea">
       <input type="text" id="answerInput" placeholder="答えを入力..." />
       <button id="submitBtn" disabled>回答</button>
-    </div>
+    </form>
     <div id="result"></div>
     <img id="answerImage" src="" alt="回答画像" style="display:none;" />
     <div id="scoreBoard"></div>
@@ -222,6 +222,7 @@
 
     const cardsContainer = document.getElementById('cardsContainer');
     const answerInput = document.getElementById('answerInput');
+    const inputArea = document.getElementById('inputArea');
     const submitBtn = document.getElementById('submitBtn');
     const resultDiv = document.getElementById('result');
     const scoreBoard = document.getElementById('scoreBoard');
@@ -229,7 +230,7 @@
     const scoreImage = document.getElementById('scoreImage');
     const screenshotBtn = document.getElementById('screenshotBtn');
 
-    submitBtn.addEventListener('click', checkAnswer);
+    inputArea.addEventListener('submit', checkAnswer);
     screenshotBtn.addEventListener('click', takeScreenshot);
 
     startGame();
@@ -285,7 +286,10 @@
       }
     }
 
-    function checkAnswer() {
+    function checkAnswer(evt) {
+      // フォームが送信されるのを防ぐ
+      evt.preventDefault();
+
       const userAnswer = answerInput.value.trim();
       const correctAnswer = quizSubset[currentIndex].answer;
       if (currentReveals === 0) {
